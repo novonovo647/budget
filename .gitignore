@@ -13,6 +13,9 @@ dist/
 .env.local
 .env.*.local
 
+# サンプルデータ（実データを含むため公開しない）
+sample/
+
 # ログ
 *.log
 npm-debug.log*
