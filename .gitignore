@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# 依存関係
+node_modules/
+
+# ビルド出力
+dist/
+
+# 環境変数・秘密情報
+.env
+.env.local
+.env.*.local
+
+# ログ
+*.log
+npm-debug.log*
+
+# エディタ
+.vscode/*
+!.vscode/extensions.json
+.idea/
