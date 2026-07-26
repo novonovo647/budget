@@ -1,0 +1,8 @@
+{
+  "name": "生活費予実管理アプリ",
+  "short_name": "予実管理",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8f9fb",
+  "theme_color": "#007bff"
+}

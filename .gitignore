@@ -3,6 +3,7 @@
 
 # 依存関係
 node_modules/
+.local/
 
 # ビルド出力
 dist/
