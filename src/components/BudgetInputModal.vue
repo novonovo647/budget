@@ -17,7 +17,7 @@
         </div>
 
         <section class="target-frame">
-          <h3 class="frame-title">月目標</h3>
+          <h3 class="frame-title">月次予算</h3>
           <div v-for="category in monthlyCategories" :key="category.label" class="input-group">
             <label :for="`budget-${category.label}`">{{ category.label }}</label>
             <div class="amount-field">
@@ -31,15 +31,15 @@
               <span class="unit">円</span>
             </div>
           </div>
-          <p class="hint">月目標は 12 か月共通で適用されます。</p>
+          <p class="hint">月次予算は 12 か月共通で適用されます。</p>
           <div class="total-row">
-            <span class="total-label">月目標 合計<span class="note">（旅行費を除く）</span></span>
+            <span class="total-label">月次予算 合計<span class="note">（旅行費を除く）</span></span>
             <span class="total-value">{{ monthlyTotal.toLocaleString('ja-JP') }} 円</span>
           </div>
         </section>
 
         <section class="target-frame">
-          <h3 class="frame-title">年目標</h3>
+          <h3 class="frame-title">年次予算</h3>
           <div v-for="category in annualCategories" :key="category.label" class="input-group">
             <label :for="`budget-${category.label}`">{{ category.label }}</label>
             <div class="amount-field">
@@ -54,7 +54,7 @@
             </div>
           </div>
           <div class="total-row">
-            <span class="total-label">年目標 合計<span class="note">（旅行費含む）</span></span>
+            <span class="total-label">年次予算 合計<span class="note">（旅行費含む）</span></span>
             <span class="total-value">{{ annualTotal.toLocaleString('ja-JP') }} 円</span>
           </div>
         </section>
@@ -247,8 +247,13 @@ const close = () => emit('close')
 
 .input-group {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.input-group > label {
+  flex: 0 0 6em;
 }
 
 .target-frame {
@@ -266,6 +271,7 @@ const close = () => emit('close')
 }
 
 .amount-field {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
