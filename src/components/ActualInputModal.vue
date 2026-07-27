@@ -151,8 +151,7 @@ const close = () => emit('close')
   color: #2e7d32;
 }
 
-.sync-status.saving,
-.sync-status.loading {
+.sync-status.saving {
   color: #888;
 }
 

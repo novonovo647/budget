@@ -105,9 +105,7 @@ export const useBudget = () => {
   )
 
   return {
-    actualData,
     budgetData,
-    budgetConfig,
     yearOptions,
     dataYears,
     monthlyTableFor,
