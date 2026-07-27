@@ -1,18 +1,18 @@
-import { initializeApp, getApps } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 
+// Web API キーは公開されても問題ない（クライアント設定）。
+// アクセス制御は Firestore セキュリティルールで担保する。
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: 'AIzaSyCdcBrk9fJ_WO7fVDYK4XS3Fg6miLKX-38',
+  authDomain: 'trip-map-189f0.firebaseapp.com',
+  projectId: 'trip-map-189f0',
+  storageBucket: 'trip-map-189f0.firebasestorage.app',
+  messagingSenderId: '786949682699',
+  appId: '1:786949682699:web:c17f3db783f7568077390e',
 }
 
-export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
-export const app = isFirebaseConfigured && !getApps().length ? initializeApp(firebaseConfig) : null
-export const auth = isFirebaseConfigured ? getAuth(app) : null
-export const provider = isFirebaseConfigured ? new GoogleAuthProvider() : null
-export const db = isFirebaseConfigured ? getFirestore(app) : null
+const app = initializeApp(firebaseConfig)
+export const db = getFirestore(app)
+export const auth = getAuth(app)

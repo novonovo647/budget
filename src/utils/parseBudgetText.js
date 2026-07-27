@@ -1,4 +1,4 @@
-const parseNumber = (value) => {
+export const parseAmount = (value) => {
   if (!value) return 0
   const digits = value.toString().replace(/[\_,\s円%]/g, '')
   return Number(digits) || 0
@@ -34,7 +34,7 @@ export const parseBudgetText = (text) => {
     if (columns.length >= 3) {
       rows.push({
         item: columns[0],
-        amount: parseNumber(columns[1]),
+        amount: parseAmount(columns[1]),
         ratio: columns[2],
       })
       continue
@@ -50,7 +50,7 @@ export const parseBudgetText = (text) => {
   for (let i = 0; i + 2 < fallback.length; i += 3) {
     rows.push({
       item: fallback[i],
-      amount: parseNumber(fallback[i + 1]),
+      amount: parseAmount(fallback[i + 1]),
       ratio: fallback[i + 2],
     })
   }

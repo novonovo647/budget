@@ -1,122 +1,315 @@
 <template>
   <div class="app-shell">
-    <h1>生活費予実管理</h1>
+    <header class="app-header">
+      <h1>生活費予実管理</h1>
+      <div v-if="currentUser" ref="menuWrap" class="menu-wrap">
+        <button
+          class="hamburger"
+          type="button"
+          aria-label="メニュー"
+          :aria-expanded="isMenuOpen"
+          @click.stop="isMenuOpen = !isMenuOpen"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <ul v-if="isMenuOpen" class="menu" @click="isMenuOpen = false">
+          <li class="menu-user">👤 {{ currentUser.displayName }}</li>
+          <li>
+            <button type="button" @click="isActualModalOpen = true">実績入力</button>
+          </li>
+          <li>
+            <button type="button" @click="isBudgetModalOpen = true">予算入力</button>
+          </li>
+          <li>
+            <button type="button" @click="handleSignOut">ログアウト</button>
+          </li>
+          <li class="menu-version">バージョン {{ appVersion }}</li>
+        </ul>
+      </div>
+    </header>
 
-    <section class="section">
-      <h2>実績 / 予算入力</h2>
-      <div class="flex-row">
-        <div class="input-group">
-          <label for="actual">実績データ</label>
-          <textarea id="actual" v-model="actualText" rows="12" placeholder="サンプルの表を貼り付けてください"></textarea>
-        </div>
-        <div class="input-group">
-          <label for="budget">予算データ</label>
-          <textarea id="budget" v-model="budgetText" rows="12" placeholder="予算をテキストで入力してください"></textarea>
+    <div v-if="!currentUser" class="login-gate">
+      <p v-if="!authReady">読み込み中…</p>
+      <template v-else>
+        <p>閲覧・編集にはログインが必要です。</p>
+        <button class="primary" type="button" @click="signIn">Googleでログイン</button>
+        <p v-if="loginError" class="error-text">{{ loginError }}</p>
+      </template>
+    </div>
+
+    <section v-else class="section">
+      <div class="section-head">
+        <h2>予実表</h2>
+        <div class="section-controls">
+          <div class="tabs">
+            <button :class="{ active: viewMode === 'monthly' }" @click="viewMode = 'monthly'">月次</button>
+            <button :class="{ active: viewMode === 'annual' }" @click="viewMode = 'annual'">年次</button>
+          </div>
+          <div v-if="viewMode === 'monthly'" class="year-picker">
+            <label for="monthly-year">対象年</label>
+            <select id="monthly-year" v-model.number="monthlyYear">
+              <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}年</option>
+            </select>
+          </div>
         </div>
       </div>
+
+      <!-- 月次表示：年を選び、1〜12月・累計・予算・累計差額を表示 -->
+      <template v-if="viewMode === 'monthly'">
+        <div class="table-scroll">
+          <table class="budget-table">
+            <thead>
+              <tr>
+                <th class="sticky-col">カテゴリ</th>
+                <th v-for="month in months" :key="month">{{ month }}月</th>
+                <th>累計</th>
+                <th>予算</th>
+                <th>累計差額</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in monthlyRows" :key="row.label">
+                <td class="sticky-col">
+                  {{ row.label }}
+                  <InfoHint v-if="categoryItems[row.label]" :text="categoryItems[row.label]" />
+                </td>
+                <td v-for="(value, index) in row.monthly" :key="index">{{ formatYen(value) }}</td>
+                <td class="emphasis">{{ formatYen(row.cumulative) }}</td>
+                <td>{{ formatYen(row.budget) }}</td>
+                <td :class="{ over: row.variance < 0 }">{{ formatYen(row.variance) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td class="sticky-col">合計<InfoHint text="月列は旅行費を除く／累計・予算は含む" /></td>
+                <td v-for="(value, index) in monthlyTotals.monthly" :key="index">{{ formatYen(value) }}</td>
+                <td class="emphasis">{{ formatYen(monthlyTotals.cumulative) }}</td>
+                <td>{{ formatYen(monthlyTotals.budget) }}</td>
+                <td :class="{ over: monthlyTotals.variance < 0 }">{{ formatYen(monthlyTotals.variance) }}</td>
+              </tr>
+              <tr class="total-row variance-row">
+                <td class="sticky-col">差額<InfoHint text="月予算−月実績（旅行費を除く）" /></td>
+                <td
+                  v-for="(value, index) in monthlyTotals.monthlyVariance"
+                  :key="index"
+                  :class="{ over: value < 0 }"
+                >{{ formatYen(value) }}</td>
+                <td class="emphasis" :class="{ over: monthlyTotals.varianceExcl < 0 }">{{ formatYen(monthlyTotals.varianceExcl) }}</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <h3>予算消化率（{{ monthlyYear }}年 累計）<InfoHint text="実績累計 ÷ 年間予算（100% 超過は赤）" /></h3>
+        <UtilizationChart :items="utilizationItems" />
+      </template>
+
+      <!-- 年次表示：年ごとに実績と差額を表示 -->
+      <template v-else>
+        <p v-if="!dataYears.length" class="empty-text">データがある年がありません。</p>
+        <div v-else class="table-scroll">
+          <table class="budget-table">
+            <thead>
+              <tr>
+                <th class="sticky-col" rowspan="2">カテゴリ</th>
+                <th v-for="year in dataYears" :key="year" colspan="2">{{ year }}年</th>
+              </tr>
+              <tr>
+                <template v-for="year in dataYears" :key="year">
+                  <th>実績</th>
+                  <th>差額</th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in annualRows" :key="row.label">
+                <td class="sticky-col">
+                  {{ row.label }}
+                  <InfoHint v-if="categoryItems[row.label]" :text="categoryItems[row.label]" />
+                </td>
+                <template v-for="cell in row.perYear" :key="cell.year">
+                  <td>{{ formatYen(cell.actual) }}</td>
+                  <td :class="{ over: cell.variance < 0 }">{{ formatYen(cell.variance) }}</td>
+                </template>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td class="sticky-col">合計</td>
+                <template v-for="cell in annualTotals" :key="cell.year">
+                  <td>{{ formatYen(cell.actual) }}</td>
+                  <td :class="{ over: cell.variance < 0 }">{{ formatYen(cell.variance) }}</td>
+                </template>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div v-if="dataYears.length" class="table-summary">
+          <div v-for="cell in annualTotals" :key="cell.year" class="summary-item">
+            <span class="summary-label">{{ cell.year }}年 合計</span>
+            <span class="summary-amount">実績 {{ formatYen(cell.actual) }}</span>
+            <span class="summary-amount" :class="{ over: cell.variance < 0 }">差額 {{ formatYen(cell.variance) }}</span>
+          </div>
+        </div>
+
+        <template v-if="dataYears.length">
+          <h3>予算消化率（年別）<InfoHint text="年計実績 ÷ 年間予算（100% 超過は赤）" /></h3>
+          <UtilizationChart :items="annualUtilization" />
+        </template>
+      </template>
     </section>
 
-    <section class="section">
-      <h2>マッチング設定</h2>
-      <div class="mapping-area">
-        <label for="mapping">カテゴリマッピング（JSON）</label>
-        <textarea id="mapping" v-model="mappingText" rows="10"></textarea>
-        <p class="help-text">実績のカテゴリ名を予算カテゴリに変換します。サンプルは固定の JSON です。</p>
-        <p class="error-text" v-if="mappingError">{{ mappingError }}</p>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>表示</h2>
-      <div class="tabs">
-        <button :class="{ active: viewMode === 'monthly' }" @click="viewMode = 'monthly'">月次</button>
-        <button :class="{ active: viewMode === 'annual' }" @click="viewMode = 'annual'">年次</button>
-      </div>
-
-      <div class="summary-card">
-        <p>実績合計: {{ formatYen(summary.totalActual) }}</p>
-        <p>予算合計: {{ formatYen(summary.totalBudget) }}</p>
-        <p>差額合計: {{ formatYen(summary.totalBudget - summary.totalActual) }}</p>
-        <p class="app-version">バージョン: {{ appVersion }}</p>
-      </div>
-
-      <table class="budget-table">
-        <thead>
-          <tr>
-            <th>カテゴリ</th>
-            <th>実績</th>
-            <th>予算</th>
-            <th>差額</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in displayedItems" :key="item.label">
-            <td>{{ item.label }}</td>
-            <td>{{ formatYen(item.actual) }}</td>
-            <td>{{ formatYen(item.budget) }}</td>
-            <td>{{ formatYen(item.variance) }}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="chart-grid">
-        <div class="chart-box">
-          <h3>実績</h3>
-          <ul>
-            <li v-for="item in displayedItems" :key="item.label + '-actual'">
-              <span>{{ item.label }}</span>
-              <strong>{{ formatYen(item.actual) }}</strong>
-            </li>
-          </ul>
-        </div>
-        <div class="chart-box">
-          <h3>予算</h3>
-          <ul>
-            <li v-for="item in displayedItems" :key="item.label + '-budget'">
-              <span>{{ item.label }}</span>
-              <strong>{{ formatYen(item.budget) }}</strong>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </section>
+    <ActualInputModal
+      :open="isActualModalOpen"
+      :years="yearOptions"
+      :default-year="defaultYear"
+      :sync-status="syncStatus"
+      @import="handleImportActual"
+      @close="closeActualModal"
+    />
+    <BudgetInputModal
+      :open="isBudgetModalOpen"
+      :budget-data="budgetData"
+      :years="yearOptions"
+      :default-year="defaultYear"
+      :sync-status="syncStatus"
+      @update:year="handleUpdateBudget"
+      @close="closeBudgetModal"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useBudget } from './composables/useBudget.js'
-import { DEFAULT_CATEGORY_MAPPING } from './utils/constants.js'
+import { useAuth } from './composables/useAuth.js'
+import ActualInputModal from './components/ActualInputModal.vue'
+import BudgetInputModal from './components/BudgetInputModal.vue'
+import UtilizationChart from './components/UtilizationChart.vue'
+import InfoHint from './components/InfoHint.vue'
 
+import { MONTHS, DEFAULT_CATEGORY_MAPPING } from './utils/constants.js'
+import { sumMonthlyRows, sumAnnualRows } from './utils/aggregateBudget.js'
 import { APP_VERSION } from './utils/version.js'
 
 const viewMode = ref('monthly')
-const mappingText = ref(JSON.stringify(DEFAULT_CATEGORY_MAPPING, null, 2))
-const mappingError = ref('')
+const isActualModalOpen = ref(false)
+const isBudgetModalOpen = ref(false)
+const isMenuOpen = ref(false)
+const months = MONTHS
+
+// カテゴリの内訳項目（予備費のみ表示）。ⓘ の説明に使う。
+const categoryItems = (() => {
+  const reserveItems = Object.entries(DEFAULT_CATEGORY_MAPPING)
+    .filter(([, category]) => category === '予備費')
+    .map(([item]) => item)
+  return { 予備費: reserveItems.join('、') }
+})()
 const {
-  actualText,
-  budgetText,
-  budgetConfig,
-  summary,
-  monthlyCategories,
-  annualCategories,
+  budgetData,
+  yearOptions,
+  dataYears,
+  monthlyTableFor,
+  annualTable,
+  importActual,
+  setBudgetForYear,
+  startSync,
+  stopSync,
+  flushSave,
+  syncStatus,
 } = useBudget()
 
-const applyMapping = () => {
-  try {
-    const parsed = JSON.parse(mappingText.value)
-    budgetConfig.value = parsed
-    mappingError.value = ''
-  } catch (err) {
-    mappingError.value = 'JSON の読み込みに失敗しました。正しい形式を入力してください。'
-  }
+const { currentUser, authReady, loginError, signIn, handleSignOut, start, stop } = useAuth({
+  onLogin: startSync,
+  onLogout: stopSync,
+})
+
+// ハンバーガーメニューの外側クリックで閉じる
+const menuWrap = ref(null)
+const onDocClick = (event) => {
+  if (menuWrap.value && !menuWrap.value.contains(event.target)) isMenuOpen.value = false
 }
 
-watch(mappingText, applyMapping, { immediate: true })
-
-const displayedItems = computed(() => {
-  return viewMode.value === 'annual' ? annualCategories.value : monthlyCategories.value
+onMounted(() => {
+  start()
+  document.addEventListener('click', onDocClick)
 })
+onUnmounted(() => {
+  stop()
+  stopSync()
+  document.removeEventListener('click', onDocClick)
+})
+
+// 既定年：データがある最新年、無ければ現在年
+const defaultYear = computed(() => {
+  const years = dataYears.value
+  return years.length ? years[years.length - 1] : new Date().getFullYear()
+})
+
+const monthlyYear = ref(defaultYear.value)
+// データ読込などで既定年が変わったら、月次表示の対象年も追従する
+watch(defaultYear, (year) => {
+  monthlyYear.value = year
+})
+
+const monthlyRows = computed(() => monthlyTableFor(monthlyYear.value))
+const annualRows = computed(() => annualTable.value)
+
+// 合計行（旅行費などの年間カテゴリは除外）
+const monthlyTotals = computed(() => sumMonthlyRows(monthlyRows.value))
+const annualTotals = computed(() => sumAnnualRows(annualRows.value, dataYears.value))
+
+// 予算消化率チャート用データ（カテゴリ別）。実績累計 ÷ 年間予算 の割合。
+const utilizationItems = computed(() =>
+  monthlyRows.value.map((row) => ({
+    label: row.label,
+    actual: row.cumulative,
+    budget: row.budget,
+    percent: row.budget > 0 ? (row.cumulative / row.budget) * 100 : 0,
+  }))
+)
+
+// 予算消化率チャート用データ（年別）。各年の全カテゴリ合計（旅行費を含む）。
+const annualUtilization = computed(() =>
+  dataYears.value.map((year, index) => {
+    let actual = 0
+    let budget = 0
+    for (const row of annualRows.value) {
+      actual += row.perYear[index].actual
+      budget += row.perYear[index].budget
+    }
+    return {
+      label: `${year}年`,
+      actual,
+      budget,
+      percent: budget > 0 ? (actual / budget) * 100 : 0,
+    }
+  })
+)
+
+const handleImportActual = ({ year, month, text }) => {
+  importActual(year, month, text)
+}
+
+const handleUpdateBudget = ({ year, amounts }) => {
+  setBudgetForYear(year, amounts)
+}
+
+// モーダルを閉じるときは保留中のデバウンス保存を待たず即時保存する
+const closeActualModal = () => {
+  isActualModalOpen.value = false
+  flushSave()
+}
+
+const closeBudgetModal = () => {
+  isBudgetModalOpen.value = false
+  flushSave()
+}
 
 const formatYen = (value) => {
   return value.toLocaleString('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 })
@@ -152,16 +345,108 @@ h3 {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-.flex-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
 }
 
-.input-group {
+.app-header h1 {
+  margin: 0;
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.hamburger {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: space-between;
+  width: 40px;
+  height: 34px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  background: #333;
+  border-radius: 2px;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  z-index: 900;
+}
+
+.menu li {
+  margin: 0;
+}
+
+.menu button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.menu button:hover {
+  background: #f2f6fb;
+}
+
+.menu-user {
+  padding: 8px 12px;
+  color: #555;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #eee;
+}
+
+.menu-version {
+  padding: 8px 12px;
+  color: #888;
+  font-size: 0.8rem;
+  border-top: 1px solid #eee;
+}
+
+.login-gate {
+  background: #fff;
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.login-gate .primary {
+  background: #007bff;
+  color: #fff;
+  border: 1px solid #007bff;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.error-text {
+  color: #e53935;
+  margin-top: 12px;
 }
 
 textarea {
@@ -194,58 +479,130 @@ button.active {
   border-color: #007bff;
 }
 
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.section-controls .tabs {
+  margin-bottom: 0;
+}
+
+.section-controls .year-picker {
+  margin-bottom: 0;
+}
+
+.year-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.year-picker select {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: inherit;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
 .budget-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 20px;
+  white-space: nowrap;
 }
 
 .budget-table th,
 .budget-table td {
   border: 1px solid #e0e0e0;
-  padding: 12px;
+  padding: 8px 10px;
   text-align: right;
 }
 
 .budget-table th {
   background: #f2f6fb;
+  text-align: right;
+}
+
+.budget-table .sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #f2f6fb;
   text-align: left;
 }
 
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.budget-table td.sticky-col {
+  background: #fff;
+  font-weight: 600;
 }
 
-.chart-box {
-  background: #f7f9fc;
-  border-radius: 12px;
-  padding: 16px;
+.budget-table td.emphasis {
+  font-weight: 600;
 }
 
-.chart-box ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.budget-table td.over {
+  color: #e53935;
 }
 
-.chart-box li {
+.budget-table .total-row td {
+  background: #eef3f9;
+  font-weight: 600;
+}
+
+.budget-table .total-row td.sticky-col {
+  background: #eef3f9;
+}
+
+.empty-text {
+  color: #888;
+}
+
+.table-summary {
   display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.summary-card {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-bottom: 20px;
 }
 
-.app-version {
-  color: #666;
-  font-size: 0.9rem;
+.summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  background: #f2f6fb;
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+.summary-label {
+  font-weight: 600;
+}
+
+.summary-amount {
+  font-weight: 600;
+}
+
+.summary-amount.over {
+  color: #e53935;
 }
 </style>
