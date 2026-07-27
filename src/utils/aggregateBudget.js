@@ -1,4 +1,4 @@
-import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, EXCLUDED_GROUPS, GROUP_CATEGORY_MAPPING, BUDGET_CATEGORIES, MONTHS } from './constants.js'
+import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, EXCLUDED_GROUPS, IGNORED_ITEMS, GROUP_CATEGORY_MAPPING, BUDGET_CATEGORIES, MONTHS } from './constants.js'
 
 // 明細行（項目・金額、順序どおり。小計「◯◯ 合計」を含む）を分類する。
 // 返り値: [{ item, amount, category }]（小計行と除外グループの明細は除く）
@@ -15,6 +15,8 @@ export const classifyRows = (rows) => {
       continue
     }
     if (excludingGroup) continue
+    // 見出し行など集計対象外の項目はスキップ
+    if (IGNORED_ITEMS.includes(row.item)) continue
     const category =
       DEFAULT_CATEGORY_MAPPING[row.item] || GROUP_CATEGORY_MAPPING[currentGroup] || DEFAULT_CATEGORY
     out.push({ item: row.item, amount: row.amount, category })
