@@ -169,8 +169,9 @@
       :years="yearOptions"
       :default-year="defaultYear"
       :sync-status="syncStatus"
-      @import="handleImportActual"
-      @close="closeActualModal"
+      @save="handleSaveActual"
+      @activity="resetStatus"
+      @close="isActualModalOpen = false"
     />
     <BudgetInputModal
       :open="isBudgetModalOpen"
@@ -178,8 +179,9 @@
       :years="yearOptions"
       :default-year="defaultYear"
       :sync-status="syncStatus"
-      @update:year="handleUpdateBudget"
-      @close="closeBudgetModal"
+      @save="handleSaveBudget"
+      @activity="resetStatus"
+      @close="isBudgetModalOpen = false"
     />
   </div>
 </template>
@@ -220,7 +222,8 @@ const {
   setBudgetForYear,
   startSync,
   stopSync,
-  flushSave,
+  save,
+  resetStatus,
   syncStatus,
 } = useBudget()
 
@@ -292,23 +295,16 @@ const annualUtilization = computed(() =>
   })
 )
 
-const handleImportActual = ({ year, month, text }) => {
+// 実績保存：選択年月を置換登録して保存する
+const handleSaveActual = ({ year, month, text }) => {
   importActual(year, month, text)
+  save()
 }
 
-const handleUpdateBudget = ({ year, amounts }) => {
+// 予算保存：選択年の月目標を確定して保存する
+const handleSaveBudget = ({ year, amounts }) => {
   setBudgetForYear(year, amounts)
-}
-
-// モーダルを閉じるときは保留中のデバウンス保存を待たず即時保存する
-const closeActualModal = () => {
-  isActualModalOpen.value = false
-  flushSave()
-}
-
-const closeBudgetModal = () => {
-  isBudgetModalOpen.value = false
-  flushSave()
+  save()
 }
 
 const formatYen = (value) => {

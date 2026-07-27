@@ -34,11 +34,14 @@ export const YEAR_RANGE_BACK = 5
 export const YEAR_RANGE_FORWARD = 1
 
 
-// 自動保存のデバウンス時間（ミリ秒）
-export const AUTOSAVE_DEBOUNCE_MS = 1500
-
 // マッピングに無い項目の既定カテゴリ（受け皿）。新しい項目が発生しても必ずここに集約される。
 export const DEFAULT_CATEGORY = '生活費'
+
+// 実績集計から除外するグループ（小計名）。
+// 貼り付けデータは「◯◯ 合計」の小計行に続けて明細行が並ぶため、
+// 指定した小計から次の小計までの明細をまとめて対象外にする。
+// 現金・カードは電子マネーのチャージやカード引き落とし等の資金移動で、消費ではないため除外する。
+export const EXCLUDED_GROUPS = ['現金・カード']
 
 // 項目名 → カテゴリのマッピング。
 // 生活費は既定の受け皿（DEFAULT_CATEGORY）のため、ここには明示しない。

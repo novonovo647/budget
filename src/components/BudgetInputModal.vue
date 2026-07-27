@@ -4,7 +4,7 @@
       <div class="modal-header">
         <h2 id="budget-modal-title">予算入力</h2>
         <div class="modal-header-actions">
-          <span v-if="syncStatus !== 'idle'" class="sync-status" :class="syncStatus">{{ syncLabel }}</span>
+          <span v-if="syncLabel" class="sync-status" :class="syncStatus">{{ syncLabel }}</span>
           <button class="modal-close" type="button" aria-label="閉じる" @click="close">×</button>
         </div>
       </div>
@@ -59,6 +59,10 @@
           </div>
         </section>
       </div>
+
+      <div class="modal-footer">
+        <button class="primary" type="button" @click="onSave">保存</button>
+      </div>
     </div>
   </div>
 </template>
@@ -77,19 +81,19 @@ const props = defineProps({
   syncStatus: { type: String, default: 'idle' },
 })
 
-const emit = defineEmits(['update:year', 'close'])
+const emit = defineEmits(['save', 'close', 'activity'])
 
 // 保存状態の表示文言
 const syncLabel = computed(() => {
   switch (props.syncStatus) {
     case 'saving':
-      return '保存中…'
+      return '保存中'
+    case 'saved':
+      return '保存しました'
     case 'error':
       return '⚠ 保存失敗'
-    case 'loading':
-      return '読込中…'
     default:
-      return '✓ 保存済み'
+      return ''
   }
 })
 
@@ -99,42 +103,57 @@ const monthlyCategories = categories.filter((category) => !category.annual)
 const annualCategories = categories.filter((category) => category.annual)
 const selectedYear = ref(props.defaultYear)
 
-// モーダルを開くたびに、選択年を既定値に合わせる
+// 入力中の値はローカルに保持し、保存ボタンを押すまで表・グラフには反映しない
+const localAmounts = ref({})
+const syncLocal = () => {
+  localAmounts.value = { ...(props.budgetData[selectedYear.value] ?? {}) }
+}
+
+// モーダルを開いたら選択年を既定値に合わせ、その年の予算を読み込む
 watch(
   () => props.open,
   (open) => {
-    if (open) selectedYear.value = props.defaultYear
+    if (open) {
+      selectedYear.value = props.defaultYear
+      syncLocal()
+    }
   }
 )
 
-// 選択年の予算（カテゴリ別月目標）
-const amounts = computed(() => props.budgetData[selectedYear.value] ?? {})
+// 年を切り替えたらその年の予算を読み込み直し、保存メッセージを消す
+watch(selectedYear, () => {
+  syncLocal()
+  emit('activity')
+})
 
 // 入力欄にはカンマ区切りで表示する（0/未入力は空欄）
 const displayValue = (label) => {
-  const value = amounts.value[label] ?? 0
+  const value = localAmounts.value[label] ?? 0
   return value ? value.toLocaleString('ja-JP') : ''
 }
 
 // 月目標の合計（旅行費などの年間カテゴリは除外）
 const monthlyTotal = computed(() =>
-  categories
-    .filter((category) => !category.annual)
-    .reduce((sum, category) => sum + (amounts.value[category.label] ?? 0), 0)
+  monthlyCategories.reduce((sum, category) => sum + (localAmounts.value[category.label] ?? 0), 0)
 )
 
 // 年目標の合計（旅行費を含む）：生活系は月目標×12、旅行費は年間額
 const annualTotal = computed(() =>
   categories.reduce(
-    (sum, category) => sum + annualBudgetOf(category, amounts.value[category.label] ?? 0),
+    (sum, category) => sum + annualBudgetOf(category, localAmounts.value[category.label] ?? 0),
     0
   )
 )
 
-// カテゴリ別の入力を数値化し、選択年ぶんの更新を通知する
+// カテゴリ別の入力を数値化してローカルに反映し、保存メッセージを消す
 const onInput = (label, raw) => {
-  const next = { ...amounts.value, [label]: parseAmount(raw) }
-  emit('update:year', { year: selectedYear.value, amounts: next })
+  localAmounts.value = { ...localAmounts.value, [label]: parseAmount(raw) }
+  emit('activity')
+}
+
+// 保存ボタン：選択年の月目標を確定して保存する
+const onSave = () => {
+  emit('save', { year: selectedYear.value, amounts: localAmounts.value })
 }
 
 const close = () => emit('close')
@@ -294,5 +313,20 @@ const close = () => emit('close')
 
 .total-value {
   font-weight: 600;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 20px 20px;
+}
+
+.modal-footer .primary {
+  background: #007bff;
+  color: #fff;
+  border: 1px solid #007bff;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
 }
 </style>

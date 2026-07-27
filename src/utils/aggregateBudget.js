@@ -1,14 +1,22 @@
-import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, BUDGET_CATEGORIES, MONTHS } from './constants.js'
+import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, EXCLUDED_GROUPS, BUDGET_CATEGORIES, MONTHS } from './constants.js'
 
+// 貼り付けデータ（項目・金額の行）をカテゴリ別金額に集計する。
+// - 「◯◯ 合計」の小計行はグループ見出しとして扱い、集計には含めない（明細と二重計上しない）
+// - EXCLUDED_GROUPS に該当する小計以降、次の小計までの明細はまとめて対象外にする（資金移動など）
 export const groupByCategory = (rows, mapping = DEFAULT_CATEGORY_MAPPING) => {
-  return rows.reduce((result, row) => {
-    // 「◯◯ 合計」などの小計行は内訳と重複するため集計から除外する（二重計上の防止）
-    if (/合計$/.test(row.item)) return result
-    // マッピングに無い項目は既定カテゴリ（受け皿）へ集約する
+  const result = {}
+  let excludingGroup = false
+  for (const row of rows) {
+    if (/合計$/.test(row.item)) {
+      const groupName = row.item.replace(/\s*合計$/, '')
+      excludingGroup = EXCLUDED_GROUPS.includes(groupName)
+      continue
+    }
+    if (excludingGroup) continue
     const target = mapping[row.item] || DEFAULT_CATEGORY
     result[target] = (result[target] || 0) + row.amount
-    return result
-  }, {})
+  }
+  return result
 }
 
 // カテゴリの年間予算を求める。

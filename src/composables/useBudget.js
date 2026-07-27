@@ -1,9 +1,9 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { parseBudgetText } from '../utils/parseBudgetText.js'
 import { groupByCategory, buildMonthlyTable, buildAnnualTable } from '../utils/aggregateBudget.js'
 import { buildYearOptions } from '../utils/period.js'
-import { DEFAULT_CATEGORY_MAPPING, FIRESTORE, BUDGET_FIELDS, AUTOSAVE_DEBOUNCE_MS } from '../utils/constants.js'
+import { DEFAULT_CATEGORY_MAPPING, FIRESTORE, BUDGET_FIELDS } from '../utils/constants.js'
 import { db, auth } from '../firebase.js'
 import { saveWithHistory } from '../lib/persistence.js'
 
@@ -15,32 +15,23 @@ export const useBudget = () => {
   // マッチング設定は UI から編集せず、定数の既定マッピングを直接利用する
   const budgetConfig = ref(DEFAULT_CATEGORY_MAPPING)
 
-  // 同期状態: idle | loading | saving | saved | error
+  // 保存状態: idle | saving | saved | error（保存はボタン操作のときだけ行う）
   const syncStatus = ref('idle')
   let unsub = null
-  let saveTimer = null
-  let applyingRemote = false // リモート反映中はローカル保存を抑止
   let ready = false // 初回ロード完了フラグ
 
   // Firestore の購読を開始（ログイン後に呼ぶ）
   const startSync = () => {
     if (unsub) return
-    syncStatus.value = 'loading'
     unsub = onSnapshot(
       doc(db, FIRESTORE.collection, FIRESTORE.docId),
       (snap) => {
-        applyingRemote = true
         if (snap.exists()) {
           const d = snap.data()
           actualData.value = d[BUDGET_FIELDS.actualData] ?? {}
           budgetData.value = d[BUDGET_FIELDS.budgetData] ?? {}
         }
         ready = true
-        syncStatus.value = 'saved'
-        // watch の発火を無視するため、次のマイクロタスクでフラグ解除
-        queueMicrotask(() => {
-          applyingRemote = false
-        })
       },
       () => {
         syncStatus.value = 'error'
@@ -53,11 +44,12 @@ export const useBudget = () => {
     unsub?.()
     unsub = null
     ready = false
-    clearTimeout(saveTimer)
     syncStatus.value = 'idle'
   }
 
-  const doSave = async () => {
+  // 現在の実績・予算を Firestore に保存する（保存ボタンから呼ぶ）。
+  const save = async () => {
+    if (!ready) return
     syncStatus.value = 'saving'
     try {
       await saveWithHistory(FIRESTORE.docId, {
@@ -73,23 +65,9 @@ export const useBudget = () => {
     }
   }
 
-  // 入力変更を検知して自動保存（デバウンス）
-  watch(
-    [actualData, budgetData],
-    () => {
-      if (applyingRemote || !ready) return
-      syncStatus.value = 'saving'
-      clearTimeout(saveTimer)
-      saveTimer = setTimeout(doSave, AUTOSAVE_DEBOUNCE_MS)
-    },
-    { deep: true }
-  )
-
-  // 保留中のデバウンス保存を待たず、即時に保存する（モーダルを閉じたときなどに使用）。
-  const flushSave = () => {
-    if (applyingRemote || !ready) return
-    clearTimeout(saveTimer)
-    return doSave()
+  // 保存メッセージを消す（保存以外の操作をしたときに呼ぶ）。
+  const resetStatus = () => {
+    syncStatus.value = 'idle'
   }
 
   // 貼り付けテキストを解析し、指定した年月の実績を丸ごと差し替える（置換登録）。
@@ -139,6 +117,7 @@ export const useBudget = () => {
     syncStatus,
     startSync,
     stopSync,
-    flushSave,
+    save,
+    resetStatus,
   }
 }

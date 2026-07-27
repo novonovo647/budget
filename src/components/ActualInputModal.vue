@@ -4,7 +4,7 @@
       <div class="modal-header">
         <h2 id="actual-modal-title">実績入力</h2>
         <div class="modal-header-actions">
-          <span v-if="syncStatus !== 'idle'" class="sync-status" :class="syncStatus">{{ syncLabel }}</span>
+          <span v-if="syncLabel" class="sync-status" :class="syncStatus">{{ syncLabel }}</span>
           <button class="modal-close" type="button" aria-label="閉じる" @click="close">×</button>
         </div>
       </div>
@@ -32,10 +32,15 @@
             v-model="text"
             rows="12"
             placeholder="表を貼り付けてください"
+            @input="$emit('activity')"
           ></textarea>
         </div>
 
-        <p class="hint">閉じると、選択した年月の実績を貼り付け内容で置き換えます（貼り付けが空の場合は変更しません）。</p>
+        <p class="hint">「保存」で、選択した年月の実績を貼り付け内容に置き換えて保存します。</p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="primary" type="button" :disabled="!text.trim()" @click="onSave">保存</button>
       </div>
     </div>
   </div>
@@ -52,19 +57,19 @@ const props = defineProps({
   syncStatus: { type: String, default: 'idle' },
 })
 
-const emit = defineEmits(['import', 'close'])
+const emit = defineEmits(['save', 'close', 'activity'])
 
 // 保存状態の表示文言
 const syncLabel = computed(() => {
   switch (props.syncStatus) {
     case 'saving':
-      return '保存中…'
+      return '保存中'
+    case 'saved':
+      return '保存しました'
     case 'error':
       return '⚠ 保存失敗'
-    case 'loading':
-      return '読込中…'
     default:
-      return '✓ 保存済み'
+      return ''
   }
 })
 
@@ -81,14 +86,20 @@ watch(
   }
 )
 
-// 閉じるときに、貼り付け内容があればその年月の実績として登録（置換）する
-const close = () => {
-  if (text.value.trim()) {
-    emit('import', { year: selectedYear.value, month: selectedMonth.value, text: text.value })
-    text.value = ''
-  }
-  emit('close')
+// 年・月を変更したら貼り付け内容をクリアし、保存メッセージも消す
+watch([selectedYear, selectedMonth], () => {
+  text.value = ''
+  emit('activity')
+})
+
+// 保存ボタン：選択年月の実績として登録（置換）し保存する
+const onSave = () => {
+  if (!text.value.trim()) return
+  emit('save', { year: selectedYear.value, month: selectedMonth.value, text: text.value })
+  text.value = ''
 }
+
+const close = () => emit('close')
 </script>
 
 <style scoped>
@@ -202,5 +213,25 @@ textarea {
   min-height: 240px;
   resize: vertical;
   font-family: inherit;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 20px 20px;
+}
+
+.modal-footer .primary {
+  background: #007bff;
+  color: #fff;
+  border: 1px solid #007bff;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.modal-footer .primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
