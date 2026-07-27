@@ -8,7 +8,6 @@ export const BUDGET_CATEGORIES = [
   { label: '通信費', annual: false },
   { label: '予備費', annual: false },
   { label: '旅行費', annual: true },
-  { label: '事業費', annual: false },
 ]
 
 // チャートの色（予実比較の横棒グラフ用）
@@ -47,8 +46,8 @@ export const DEFAULT_CATEGORY = '生活費'
 // 現金・カードは電子マネーのチャージやカード引き落とし等の資金移動で、消費ではないため除外する。
 export const EXCLUDED_GROUPS = ['現金・カード']
 
-// 貼り付けデータの見出し行など、集計対象外にする項目名。
-export const IGNORED_ITEMS = ['項目', '金額', '割合']
+// 見出し行や、家計の集計対象外にする項目名（事業費など）。
+export const IGNORED_ITEMS = ['項目', '金額', '割合', '事業経費', '事業費']
 
 // グループ（小計名）→ カテゴリのマッピング。
 // 「◯◯ 合計」から次の小計までの明細を、まとめて指定カテゴリへ集約する。
@@ -76,6 +75,4 @@ export const DEFAULT_CATEGORY_MAPPING = {
   'ガソリン': '車両費',
   '映画・音楽・ゲーム': '通信費',
   '旅行': '旅行費',
-  '事業経費': '事業費',
-  '事業費': '事業費',
 }
