@@ -2,6 +2,7 @@ export const BUDGET_CATEGORIES = [
   { label: '生活費', annual: false },
   { label: '外食費', annual: false },
   { label: 'ワイン費', annual: false },
+  { label: '衣服費', annual: false },
   { label: '予備費', annual: false },
   { label: '旅行費', annual: true },
   { label: '事業費', annual: false },
@@ -43,12 +44,22 @@ export const DEFAULT_CATEGORY = '生活費'
 // 現金・カードは電子マネーのチャージやカード引き落とし等の資金移動で、消費ではないため除外する。
 export const EXCLUDED_GROUPS = ['現金・カード']
 
+// グループ（小計名）→ カテゴリのマッピング。
+// 「◯◯ 合計」から次の小計までの明細を、まとめて指定カテゴリへ集約する。
+// 明細名が増えても自動で振り分けられる（項目名を個別に列挙する必要がない）。
+// 項目単位のマッピング（DEFAULT_CATEGORY_MAPPING）が優先される。
+export const GROUP_CATEGORY_MAPPING = {
+  '交際費': '予備費',
+}
+
 // 項目名 → カテゴリのマッピング。
 // 生活費は既定の受け皿（DEFAULT_CATEGORY）のため、ここには明示しない。
 // （生活費に入れたい項目は列挙せず、未マッピングとして自動的に生活費へ集約する）
 export const DEFAULT_CATEGORY_MAPPING = {
   'ワイン': 'ワイン費',
   '外食': '外食費',
+  '衣服': '衣服費',
+  'アクセサリー': '衣服費',
   '旅行': '旅行費',
   '事業経費': '事業費',
   '事業費': '事業費',

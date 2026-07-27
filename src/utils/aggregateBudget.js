@@ -1,19 +1,21 @@
-import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, EXCLUDED_GROUPS, BUDGET_CATEGORIES, MONTHS } from './constants.js'
+import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, EXCLUDED_GROUPS, GROUP_CATEGORY_MAPPING, BUDGET_CATEGORIES, MONTHS } from './constants.js'
 
 // 貼り付けデータ（項目・金額の行）をカテゴリ別金額に集計する。
 // - 「◯◯ 合計」の小計行はグループ見出しとして扱い、集計には含めない（明細と二重計上しない）
 // - EXCLUDED_GROUPS に該当する小計以降、次の小計までの明細はまとめて対象外にする（資金移動など）
+// - 振り分けの優先順位: 項目マッピング → グループマッピング → 既定カテゴリ
 export const groupByCategory = (rows, mapping = DEFAULT_CATEGORY_MAPPING) => {
   const result = {}
+  let currentGroup = null
   let excludingGroup = false
   for (const row of rows) {
     if (/合計$/.test(row.item)) {
-      const groupName = row.item.replace(/\s*合計$/, '')
-      excludingGroup = EXCLUDED_GROUPS.includes(groupName)
+      currentGroup = row.item.replace(/\s*合計$/, '')
+      excludingGroup = EXCLUDED_GROUPS.includes(currentGroup)
       continue
     }
     if (excludingGroup) continue
-    const target = mapping[row.item] || DEFAULT_CATEGORY
+    const target = mapping[row.item] || GROUP_CATEGORY_MAPPING[currentGroup] || DEFAULT_CATEGORY
     result[target] = (result[target] || 0) + row.amount
   }
   return result
