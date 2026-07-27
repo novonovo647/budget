@@ -3,6 +3,7 @@ export const BUDGET_CATEGORIES = [
   { label: '外食費', annual: false },
   { label: 'ワイン費', annual: false },
   { label: '衣服費', annual: false },
+  { label: '美容費', annual: false },
   { label: '予備費', annual: false },
   { label: '旅行費', annual: true },
   { label: '事業費', annual: false },
@@ -50,6 +51,7 @@ export const EXCLUDED_GROUPS = ['現金・カード']
 // 項目単位のマッピング（DEFAULT_CATEGORY_MAPPING）が優先される。
 export const GROUP_CATEGORY_MAPPING = {
   '交際費': '予備費',
+  '衣服・美容': '美容費',
 }
 
 // 項目名 → カテゴリのマッピング。

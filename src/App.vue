@@ -75,8 +75,12 @@
                   {{ row.label }}
                   <InfoHint v-if="categoryItems[row.label]" :text="categoryItems[row.label]" />
                 </td>
-                <td v-for="(value, index) in row.monthly" :key="index">{{ formatYen(value) }}</td>
-                <td class="emphasis">{{ formatYen(row.cumulative) }}</td>
+                <td v-for="(value, index) in row.monthly" :key="index">
+                  <BreakdownCell :amount="value" :items="row.monthlyItems[index]" />
+                </td>
+                <td class="emphasis">
+                  <BreakdownCell :amount="row.cumulative" :items="row.cumulativeItems" />
+                </td>
                 <td>{{ formatYen(row.budget) }}</td>
                 <td :class="{ over: row.variance < 0 }">{{ formatYen(row.variance) }}</td>
               </tr>
@@ -132,7 +136,7 @@
                   <InfoHint v-if="categoryItems[row.label]" :text="categoryItems[row.label]" />
                 </td>
                 <template v-for="cell in row.perYear" :key="cell.year">
-                  <td>{{ formatYen(cell.actual) }}</td>
+                  <td><BreakdownCell :amount="cell.actual" :items="cell.items" /></td>
                   <td :class="{ over: cell.variance < 0 }">{{ formatYen(cell.variance) }}</td>
                 </template>
               </tr>
@@ -194,6 +198,7 @@ import ActualInputModal from './components/ActualInputModal.vue'
 import BudgetInputModal from './components/BudgetInputModal.vue'
 import UtilizationChart from './components/UtilizationChart.vue'
 import InfoHint from './components/InfoHint.vue'
+import BreakdownCell from './components/BreakdownCell.vue'
 
 import { MONTHS, DEFAULT_CATEGORY_MAPPING } from './utils/constants.js'
 import { sumMonthlyRows, sumAnnualRows } from './utils/aggregateBudget.js'

@@ -1,11 +1,11 @@
 import { DEFAULT_CATEGORY_MAPPING, DEFAULT_CATEGORY, EXCLUDED_GROUPS, GROUP_CATEGORY_MAPPING, BUDGET_CATEGORIES, MONTHS } from './constants.js'
 
-// 貼り付けデータ（項目・金額の行）をカテゴリ別金額に集計する。
-// - 「◯◯ 合計」の小計行はグループ見出しとして扱い、集計には含めない（明細と二重計上しない）
-// - EXCLUDED_GROUPS に該当する小計以降、次の小計までの明細はまとめて対象外にする（資金移動など）
-// - 振り分けの優先順位: 項目マッピング → グループマッピング → 既定カテゴリ
-export const groupByCategory = (rows, mapping = DEFAULT_CATEGORY_MAPPING) => {
-  const result = {}
+// 明細行（項目・金額、順序どおり。小計「◯◯ 合計」を含む）を分類する。
+// 返り値: [{ item, amount, category }]（小計行と除外グループの明細は除く）
+// 振り分けの優先順位: 項目マッピング → グループマッピング → 既定カテゴリ
+export const classifyRows = (rows) => {
+  if (!Array.isArray(rows)) return []
+  const out = []
   let currentGroup = null
   let excludingGroup = false
   for (const row of rows) {
@@ -15,10 +15,36 @@ export const groupByCategory = (rows, mapping = DEFAULT_CATEGORY_MAPPING) => {
       continue
     }
     if (excludingGroup) continue
-    const target = mapping[row.item] || GROUP_CATEGORY_MAPPING[currentGroup] || DEFAULT_CATEGORY
-    result[target] = (result[target] || 0) + row.amount
+    const category =
+      DEFAULT_CATEGORY_MAPPING[row.item] || GROUP_CATEGORY_MAPPING[currentGroup] || DEFAULT_CATEGORY
+    out.push({ item: row.item, amount: row.amount, category })
   }
-  return result
+  return out
+}
+
+// 1か月分の明細をカテゴリ別に集計する。
+// 返り値: { [カテゴリ]: { total, items: [{ item, amount }] } }
+const aggregateMonth = (rows) => {
+  const acc = {}
+  for (const { item, amount, category } of classifyRows(rows)) {
+    if (!acc[category]) acc[category] = { total: 0, items: [] }
+    acc[category].total += amount
+    acc[category].items.push({ item, amount })
+  }
+  return acc
+}
+
+// 複数の明細リストを項目ごとに合算し、金額の降順で返す（内訳表示用）。
+const sumItems = (itemLists) => {
+  const map = {}
+  for (const items of itemLists) {
+    for (const { item, amount } of items) {
+      map[item] = (map[item] || 0) + amount
+    }
+  }
+  return Object.entries(map)
+    .map(([item, amount]) => ({ item, amount }))
+    .sort((a, b) => b.amount - a.amount)
 }
 
 // カテゴリの年間予算を求める。
@@ -28,36 +54,40 @@ export const annualBudgetOf = (category, monthlyTarget) => {
   return category.annual ? value : value * MONTHS.length
 }
 
-// 指定年の月次テーブル行を生成する。
-// actualsByMonth: { [月]: { [カテゴリ]: 金額 } } / budgetForYear: { [カテゴリ]: 月目標 }
+// 指定年の月次テーブル行を生成する（表示時に明細から集計）。
+// actualsByMonth: { [月]: 明細配列 } / budgetForYear: { [カテゴリ]: 月目標 }
 export const buildMonthlyTable = (actualsByMonth = {}, budgetForYear = {}) => {
+  const monthlyAgg = MONTHS.map((month) => aggregateMonth(actualsByMonth?.[month]))
   return BUDGET_CATEGORIES.map((category) => {
-    const monthly = MONTHS.map((month) => actualsByMonth?.[month]?.[category.label] ?? 0)
+    const monthly = monthlyAgg.map((agg) => agg[category.label]?.total ?? 0)
+    const monthlyItems = monthlyAgg.map((agg) => agg[category.label]?.items ?? [])
     const cumulative = monthly.reduce((sum, value) => sum + value, 0)
+    const cumulativeItems = sumItems(monthlyItems)
     const budget = annualBudgetOf(category, budgetForYear?.[category.label] ?? 0)
     return {
       label: category.label,
       annual: category.annual,
       monthly,
+      monthlyItems,
       cumulative,
+      cumulativeItems,
       budget,
       variance: budget - cumulative,
     }
   })
 }
 
-// 複数年の年次テーブル行を生成する。
-// actualData: { [年]: { [月]: { [カテゴリ]: 金額 } } } / budgetData: { [年]: { [カテゴリ]: 月目標 } }
+// 複数年の年次テーブル行を生成する（表示時に明細から集計）。
+// actualData: { [年]: { [月]: 明細配列 } } / budgetData: { [年]: { [カテゴリ]: 月目標 } }
 export const buildAnnualTable = (years = [], actualData = {}, budgetData = {}) => {
   return BUDGET_CATEGORIES.map((category) => {
     const perYear = years.map((year) => {
-      const monthsObj = actualData?.[year] ?? {}
-      const actual = MONTHS.reduce(
-        (sum, month) => sum + (monthsObj?.[month]?.[category.label] ?? 0),
-        0
-      )
+      const months = actualData?.[year] ?? {}
+      const monthlyAgg = MONTHS.map((month) => aggregateMonth(months?.[month]))
+      const actual = monthlyAgg.reduce((sum, agg) => sum + (agg[category.label]?.total ?? 0), 0)
+      const items = sumItems(monthlyAgg.map((agg) => agg[category.label]?.items ?? []))
       const budget = annualBudgetOf(category, budgetData?.[year]?.[category.label] ?? 0)
-      return { year, actual, budget, variance: budget - actual }
+      return { year, actual, items, budget, variance: budget - actual }
     })
     return { label: category.label, annual: category.annual, perYear }
   })
