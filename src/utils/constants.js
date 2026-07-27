@@ -4,6 +4,8 @@ export const BUDGET_CATEGORIES = [
   { label: 'ワイン費', annual: false },
   { label: '衣服費', annual: false },
   { label: '美容費', annual: false },
+  { label: '車両費', annual: false },
+  { label: '通信費', annual: false },
   { label: '予備費', annual: false },
   { label: '旅行費', annual: true },
   { label: '事業費', annual: false },
@@ -52,6 +54,7 @@ export const EXCLUDED_GROUPS = ['現金・カード']
 export const GROUP_CATEGORY_MAPPING = {
   '交際費': '予備費',
   '衣服・美容': '美容費',
+  '保険': '予備費',
 }
 
 // 項目名 → カテゴリのマッピング。
@@ -62,6 +65,11 @@ export const DEFAULT_CATEGORY_MAPPING = {
   '外食': '外食費',
   '衣服': '衣服費',
   'アクセサリー': '衣服費',
+  '車検・整備': '車両費',
+  '映画・音楽・ゲーム': '通信費',
+  '携帯電話': '通信費',
+  'インターネット': '通信費',
+  '情報サービス': '通信費',
   '旅行': '旅行費',
   '事業経費': '事業費',
   '事業費': '事業費',

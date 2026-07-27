@@ -200,7 +200,7 @@ import UtilizationChart from './components/UtilizationChart.vue'
 import InfoHint from './components/InfoHint.vue'
 import BreakdownCell from './components/BreakdownCell.vue'
 
-import { MONTHS, DEFAULT_CATEGORY_MAPPING } from './utils/constants.js'
+import { MONTHS, DEFAULT_CATEGORY, DEFAULT_CATEGORY_MAPPING, GROUP_CATEGORY_MAPPING } from './utils/constants.js'
 import { sumMonthlyRows, sumAnnualRows } from './utils/aggregateBudget.js'
 import { APP_VERSION } from './utils/version.js'
 
@@ -210,12 +210,20 @@ const isBudgetModalOpen = ref(false)
 const isMenuOpen = ref(false)
 const months = MONTHS
 
-// カテゴリの内訳項目（予備費のみ表示）。ⓘ の説明に使う。
+// カテゴリごとの内訳（対象の項目名・グループ名）。ⓘ の説明に使う。
+// 複数項目を集約するカテゴリ（1:n）に対して表示する。
 const categoryItems = (() => {
-  const reserveItems = Object.entries(DEFAULT_CATEGORY_MAPPING)
-    .filter(([, category]) => category === '予備費')
-    .map(([item]) => item)
-  return { 予備費: reserveItems.join('、') }
+  const map = {}
+  const add = (category, name) => {
+    ;(map[category] ||= []).push(name)
+  }
+  for (const [item, category] of Object.entries(DEFAULT_CATEGORY_MAPPING)) add(category, item)
+  for (const [group, category] of Object.entries(GROUP_CATEGORY_MAPPING)) add(category, `${group}（グループ）`)
+  const result = {}
+  for (const [category, names] of Object.entries(map)) result[category] = names.join('、')
+  // 生活費は未マッピング項目の受け皿
+  result[DEFAULT_CATEGORY] = 'マッピングされていない項目（その他）'
+  return result
 })()
 const {
   budgetData,
@@ -376,6 +384,7 @@ h3 {
 
 .hamburger span {
   display: block;
+  width: 100%;
   height: 2px;
   background: #333;
   border-radius: 2px;
@@ -472,6 +481,7 @@ button {
   border-radius: 8px;
   padding: 10px 16px;
   cursor: pointer;
+  font: inherit;
 }
 
 button.active {
