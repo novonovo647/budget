@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="予実管理アプリ（貯金箱）">
+  <!-- 背景（マスカブル対応: 主要要素は中央の安全領域に収める） -->
+  <rect width="512" height="512" rx="112" fill="#fdf6e3" />
+
+  <!-- 投入するコイン（黄色） -->
+  <circle cx="256" cy="132" r="40" fill="#ffc107" stroke="#e0a800" stroke-width="4" />
+  <text x="256" y="148" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="46" fill="#7a4b00">¥</text>
+
+  <!-- ぶたの脚（ピンク） -->
+  <rect x="176" y="360" width="36" height="46" rx="10" fill="#f48fb1" />
+  <rect x="300" y="360" width="36" height="46" rx="10" fill="#f48fb1" />
+
+  <!-- しっぽ -->
+  <path d="M120 288 q-28 4 -22 26 q6 18 26 10" fill="none" stroke="#f48fb1" stroke-width="12" stroke-linecap="round" />
+
+  <!-- ぶたの胴体（ピンク） -->
+  <ellipse cx="250" cy="292" rx="148" ry="110" fill="#f48fb1" />
+
+  <!-- 鼻（前方に突き出す・少し濃いピンク） -->
+  <ellipse cx="376" cy="296" rx="40" ry="46" fill="#ef6f9c" />
+  <ellipse cx="368" cy="296" rx="7" ry="11" fill="#6d2b3f" />
+  <ellipse cx="390" cy="296" rx="7" ry="11" fill="#6d2b3f" />
+
+  <!-- 耳 -->
+  <path d="M318 206 L360 206 L346 156 Z" fill="#ef6f9c" />
+
+  <!-- 目 -->
+  <circle cx="322" cy="256" r="12" fill="#6d2b3f" />
+
+  <!-- コイン投入口 -->
+  <rect x="206" y="204" width="92" height="16" rx="8" fill="#6d2b3f" />
+</svg>

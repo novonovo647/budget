@@ -1,5 +1,5 @@
 const cacheName = 'budget-app-v1'
-const assetsToCache = ['/', '/index.html', '/src/main.js', '/src/style.css']
+const assetsToCache = ['/', '/index.html', '/src/main.js', '/src/style.css', '/icon.svg', '/manifest.json']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
