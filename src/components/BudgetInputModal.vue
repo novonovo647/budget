@@ -176,7 +176,9 @@ const close = () => emit('close')
   border-radius: 12px;
   width: min(520px, 100%);
   max-height: 90vh;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
@@ -185,6 +187,7 @@ const close = () => emit('close')
   align-items: center;
   justify-content: space-between;
   padding: 20px 20px 0;
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -231,6 +234,8 @@ const close = () => emit('close')
   flex-direction: column;
   gap: 14px;
   padding: 20px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .period-row {
@@ -322,8 +327,10 @@ const close = () => emit('close')
 
 .modal-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  padding: 0 20px 20px;
+  padding: 16px 20px;
+  flex-shrink: 0;
 }
 
 .modal-footer .primary {
